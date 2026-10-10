@@ -1,0 +1,20 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.ipynb_checkpoints/
+
+# Ignore large model weights and datasets to prevent GitHub limits
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.pkl
+models/**/*.pt
+models/**/*.pth
+models/**/checkpoint-*
+data/raw/*.csv
+data/processed/*.csv
+
+# Streamlit specific
+.streamlit/
+
+.streamlit/
