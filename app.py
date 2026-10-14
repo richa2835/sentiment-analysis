@@ -39,70 +39,15 @@ def load_model():
     model.load(model_path)
     return model
 
+@st.cache_resource
+def load_fine_tuned_model():
+    if not is_fine_tuned_model_available():
+        return None
+    return FineTunedSentimentModel()
+
 def main():
-    st.markdown("""
-        <style>
-        /* GeeksforGeeks Theme Colors */
-        :root {
-            --gfg-green: #2F8D46;
-            --gfg-light-green: #e9f5ed;
-            --gfg-text: #000000;
-        }
-        
-        /* Headers */
-        h1, h2, h3 {
-            color: var(--gfg-green) !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-            font-weight: 600 !important;
-        }
-        
-        /* Main Title styling like GFG Article Title */
-        .main-title {
-            color: #000000 !important;
-            font-size: 2.5rem !important;
-            border-bottom: 2px solid var(--gfg-green);
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        
-        /* Button Styling */
-        .stButton>button {
-            background-color: var(--gfg-green);
-            color: white;
-            border-radius: 4px;
-            border: none;
-            font-weight: bold;
-        }
-        .stButton>button:hover {
-            background-color: #216a32;
-            color: white;
-        }
-        
-        /* Tabs Styling */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 24px;
-        }
-        .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            white-space: pre-wrap;
-            background-color: transparent;
-            border-radius: 0px;
-            color: var(--gfg-text);
-            font-weight: 500;
-            font-size: 16px;
-        }
-        .stTabs [aria-selected="true"] {
-            border-bottom: 3px solid var(--gfg-green) !important;
-            color: var(--gfg-green) !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<h1 class="main-title">What is Sentiment Analysis? (Fashion Trend Case Study)</h1>', unsafe_allow_html=True)
-    st.markdown("""
-    **Sentiment analysis**, also referred to as opinion mining, is an approach to natural language processing (NLP) that identifies the emotional tone behind a body of text.
-    In this project, we apply Sentiment Analysis and Text Mining to understand **Fast-Fashion Trend Shifts** from influencer captions and comments.
-    """)
+    st.title("👗 Fashion Trend Shifts & Sentiment Dashboard")
+    st.markdown("Analyze fashion influencer captions and audience comments using NLP (spaCy & ML).")
     
     df = load_data()
     model = load_model()
@@ -228,68 +173,87 @@ def main():
             
     # 6. Text Analyzer
     with tabs[5]:
-        st.header("Implementation of Sentiment Analysis")
-        st.markdown("""
-        In this interactive example, we demonstrate a real-time **Sentiment Analysis** and **Information Extraction** pipeline.
-        
-        ### Steps Involved:
-        1. **Text Preprocessing:** Using `spaCy` to remove noise, URLs, and stop words.
-        2. **Feature Extraction:** Identifying key **Noun Phrases** and mapping them to known fashion trends.
-        3. **Classification:** Passing the cleaned text into our Fine-Tuned HuggingFace Transformer model to predict the emotional tone.
-        """)
+        st.header("Real-time Text Analyzer")
+        st.markdown("Analyze any text using either the **Pre-trained HuggingFace Model** or our **Fine-Tuned Custom Model**.")
 
-        st.markdown("### Try it yourself:")
         user_text = st.text_area(
-            "Enter a sample text for analysis:",
+            "Enter a fashion caption or comment:",
             "I am obsessed with these oversized denim jackets!"
         )
 
-        if st.button("Run Analysis"):
-            with st.spinner("Processing through NLP Pipeline..."):
-                # spaCy NLP processing
+        fine_tuned_ready = is_fine_tuned_model_available()
+
+        model_choice = st.radio(
+            "Select Model to Use:",
+            options=["Pre-trained HuggingFace (DistilBERT)", "Our Fine-Tuned Model"],
+            help="The Fine-Tuned Model is only available after running scripts/fine_tune_transformer.py"
+        )
+
+        if model_choice == "Our Fine-Tuned Model" and not fine_tuned_ready:
+            st.warning(
+                "⚠️ Fine-tuned model not found. Please run:\n\n"
+                "```\npython scripts/fine_tune_transformer.py\n```\n\n"
+                "This will train and save your custom model locally."
+            )
+        elif st.button("Analyze Text"):
+            with st.spinner("Analyzing..."):
+                # --- NLP Processing (spaCy) — always runs ---
                 cleaned      = preprocess_text(user_text)
                 noun_phrases = extract_noun_phrases(user_text)
                 trends       = extract_trends_from_phrases([noun_phrases])[0]
 
-                # Sentiment prediction — uses fine-tuned model if available, else pre-trained
-                if is_fine_tuned_model_available():
-                    ft_model   = FineTunedSentimentModel()
-                    result     = ft_model.predict_single(user_text)
-                    sentiment  = result["label"]
-                    confidence = result["confidence"]
-                    scores     = result["scores"]
+                # --- Sentiment Prediction ---
+                if model_choice == "Our Fine-Tuned Model" and fine_tuned_ready:
+                    ft_model = load_fine_tuned_model()
+                    if ft_model is None:
+                        st.error("Failed to load fine-tuned model.")
+                        st.stop()
+                    result   = ft_model.predict_single(user_text)
+                    sentiment    = result["label"]
+                    confidence   = result["confidence"]
+                    scores       = result["scores"]
+                    model_used   = "Our Fine-Tuned DistilBERT (trained on fashion dataset)"
                 else:
+
+                    # Pre-trained HuggingFace
+                    if model is None:
+                        st.error("Pre-trained model not loaded.")
+                        st.stop()
                     sentiment  = model.predict([user_text])[0]
                     confidence = None
                     scores     = None
+                    model_used = "Pre-trained HuggingFace DistilBERT"
 
-            st.success("Pipeline Execution Complete!")
+            st.success("Analysis Complete!")
 
-            st.markdown("### Output / Results")
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("#### 1. Text Processing & Extraction")
-                st.write(f"**Cleaned Text:** `{cleaned}`")
-                st.write(f"**Extracted Noun Phrases:** `{', '.join(noun_phrases) if noun_phrases else 'None'}`")
-                st.write(f"**Mapped Fashion Trends:** `{', '.join(trends) if trends else 'None detected'}`")
+                st.subheader("NLP Processing (spaCy)")
+                st.write(f"**Cleaned Text:** {cleaned}")
+                st.write(f"**Noun Phrases:** {noun_phrases if noun_phrases else 'None'}")
+                st.write(f"**Detected Fashion Trends:** {trends if trends else 'None detected'}")
 
             with col2:
-                st.markdown("#### 2. Sentiment Classification")
+                st.subheader("Sentiment Prediction")
+                st.write(f"**Model Used:** {model_used}")
+
+                # Color-coded sentiment badge
                 color_map = {"positive": "🟢", "negative": "🔴", "neutral": "🟡"}
                 badge = color_map.get(sentiment, "⚪")
                 st.markdown(f"## {badge} {sentiment.capitalize()}")
 
                 if confidence is not None:
-                    st.write(f"**Confidence Score:** `{confidence}%`")
+                    st.write(f"**Confidence:** {confidence}%")
 
                 if scores is not None:
+                    st.subheader("Score Breakdown")
                     score_df = pd.DataFrame([scores]).T.reset_index()
                     score_df.columns = ["Sentiment", "Score (%)"]
                     score_df = score_df.sort_values("Score (%)", ascending=False)
                     fig = px.bar(score_df, x="Sentiment", y="Score (%)",
                                  color="Sentiment",
-                                 color_discrete_map={"positive": "#2F8D46", "neutral": "#808080", "negative": "#d9534f"},
-                                 title="Model Confidence Distribution")
+                                 color_discrete_map={"positive": "green", "neutral": "gray", "negative": "red"},
+                                 title="Prediction Confidence Breakdown")
                     st.plotly_chart(fig, use_container_width=True)
 
 

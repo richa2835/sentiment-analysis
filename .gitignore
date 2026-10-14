@@ -1,20 +1,27 @@
-venv/
+# Python & bytecode
 __pycache__/
-*.pyc
-.env
-.ipynb_checkpoints/
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Ignore large model weights and datasets to prevent GitHub limits
-models/**/*.bin
-models/**/*.safetensors
-models/**/*.pkl
-models/**/*.pt
-models/**/*.pth
-models/**/checkpoint-*
-data/raw/*.csv
-data/processed/*.csv
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
 
-# Streamlit specific
-.streamlit/
+# PyTorch checkpoints and large binary model weights (>100MB exceeds GitHub hard push limits)
+models/my_custom_fashion_model/checkpoint-*/
+models/my_custom_fashion_model/*.safetensors
+models/my_custom_fashion_model/*.bin
+*.safetensors
+*.pt
+*.bin
 
-.streamlit/
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
