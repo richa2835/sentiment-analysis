@@ -15,8 +15,13 @@ ID_TO_LABEL    = {0: "negative", 1: "neutral", 2: "positive"}
 
 
 def is_fine_tuned_model_available():
-    """Check if the locally fine-tuned model has been saved."""
-    return os.path.exists(os.path.join(FINE_TUNED_DIR, "config.json"))
+    """Check if the locally fine-tuned model has been saved (config + weights must exist)."""
+    has_config = os.path.exists(os.path.join(FINE_TUNED_DIR, "config.json"))
+    has_weights = (
+        os.path.exists(os.path.join(FINE_TUNED_DIR, "model.safetensors")) or
+        os.path.exists(os.path.join(FINE_TUNED_DIR, "pytorch_model.bin"))
+    )
+    return has_config and has_weights
 
 
 class FineTunedSentimentModel:
